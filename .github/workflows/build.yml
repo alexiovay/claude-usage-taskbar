@@ -1,0 +1,41 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        shell: pwsh
+        run: |
+          Copy-Item target/release/claude-usage-widget.exe ClaudeUsageTaskbar.exe
+          (Get-FileHash ClaudeUsageTaskbar.exe -Algorithm SHA256).Hash.ToLower() + "  ClaudeUsageTaskbar.exe" | Out-File -Encoding ascii ClaudeUsageTaskbar.exe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeUsageTaskbar
+          path: |
+            ClaudeUsageTaskbar.exe
+            ClaudeUsageTaskbar.exe.sha256
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ClaudeUsageTaskbar.exe
+            ClaudeUsageTaskbar.exe.sha256
+          generate_release_notes: true
